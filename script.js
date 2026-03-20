@@ -10,6 +10,16 @@ window.addEventListener('scroll', () => {
     }
 });
 
+const headerMobile = document.querySelector('.header_mobile');
+
+window.addEventListener('scroll', () => {
+    if (window.scrollY > 50) {
+        headerMobile.classList.add('scrolled');
+    } else {
+        headerMobile.classList.remove('scrolled');
+    }
+});
+
 // *******************Slider_top****************
 
 const slides = document.querySelector(".slider_item")
@@ -220,71 +230,6 @@ bindDynamicProductButtons()
 window.bindDynamicProductButtons = bindDynamicProductButtons
 window.refreshOrderProductSelects = refreshOrderProductSelects
 
-
-
-function addProduct(name = "", price = 0){
-
-  const row = document.createElement("div")
-  row.className = "order__productRow"
-
-  row.innerHTML = `
-
-    <select class="order__select">
-
-      <option value="">--Chọn sản phẩm--</option>
-
-      <option data-price="24000">Mặt nạ chống lão hoá - 24,000đ</option>
-
-      <option data-price="350000">Miếng tẩy trang - 350,000đ</option>
-
-      <option data-price="400000">Kem chống nắng - 400,000đ</option>
-
-    </select>
-
-    <input
-      type="number"
-      name = "qty"
-      class="order__qty"
-      value="1"
-      min="1"
-    >
-
-    <button type="button" class="order__remove">
-      x
-    </button>
-  `
-
-  productBox.appendChild(row)
-
-  // chọn đúng sản phẩm khi mở popup
-  if(name){
-
-    const select = row.querySelector("select")
-    let hasMatchedOption = false
-
-    for(let option of select.options){
-
-      if(option.text === name){
-        option.selected = true
-        hasMatchedOption = true
-      }
-
-    }
-
-    if(!hasMatchedOption){
-      const customOption = document.createElement("option")
-      customOption.text = name
-      customOption.value = name
-      customOption.dataset.price = price || 0
-      customOption.selected = true
-      select.appendChild(customOption)
-    }
-
-  }
-
-  updateTotal()
-}
-
 function addProduct(name = "", price = 0){
 
   const row = document.createElement("div")
@@ -463,7 +408,7 @@ successOk.onclick = ()=>{
 
 // ******************Form_Submit*****************
 
-const scriptURL = "https://script.google.com/macros/s/AKfycbz2_pxbqLLY2XzMKKNslb8q9RrEhYeabuaq0VF5RrVihz9Ty7Dmj4Z-gvUncNOBWWNm/exec"
+const scriptURL = "https://script.google.com/macros/s/AKfycbzQp_u8op-b0uJMOjFS-yq2LH46j_eoI-M4JeTRjqrDkG_7buRqJte98WIZjPXC5fuPug/exec"
 const form = document.getElementById("orderForm")
 
 form.addEventListener("submit", function(e){
@@ -544,49 +489,76 @@ document.addEventListener("click", (e) => {
 
 })
 
-// **********Đóng_mở_ảnh*******************
+// **********Đóng_mở_popup*******************
 
-const productImgs = document.querySelectorAll(".product_listItem--img, .product_listItem--title");
-const popups = document.querySelectorAll(".product_popup");
-const closeBtns = document.querySelectorAll(".popup_close");
+let currentProduct = null;
 
-productImgs.forEach(img => {
-    img.addEventListener("click", () => {
+document.addEventListener("click", (e) => {
 
-        const popupId = img.dataset.popup;
-        const popup = document.getElementById(popupId);
+    const item = e.target.closest(".product_listItem");
+
+    if (item) {
+        const popup = document.querySelector(".popup_product");
+
+        const name = item.dataset.name;
+        const price = item.dataset.price;
+        const img = item.dataset.img;
+        const desc = item.dataset.desc;
+
+        currentProduct = { name, price };
+
+        popup.querySelector(".popup_product--title").innerText = name;
+        popup.querySelector(".popup_product--price").innerText =
+            Number(price).toLocaleString("vi-VN") + "đ";
+
+        popup.querySelector(".popup_product--img").src = img;
+        popup.querySelector(".popup_product--descText").innerText =
+            desc || "Chưa có mô tả";
 
         popup.classList.add("active");
+        popup.querySelector(".product_qty").value = 1;
+    }
 
-    });
+    if (e.target.closest(".header_popup--btnClose")) {
+        document.querySelector(".popup_product").classList.remove("active");
+    }
+
+    if (e.target.classList.contains("popup_product--overlay")) {
+        document.querySelector(".popup_product").classList.remove("active");
+    }
+
 });
 
+document.addEventListener("click", (e) => {
 
-closeBtns.forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-        btn.closest(".product_popup").classList.remove("active");
-    });
-});
+    if (e.target.closest(".popup_product--buyBtn")) {
 
+        const popupProduct = document.querySelector(".popup_product");
 
-popups.forEach(popup=>{
-    popup.addEventListener("click", (e)=>{
+        const qtyInput = popupProduct.querySelector(".product_qty");
+        const qty = Number(qtyInput.value) || 1;
 
-        if(e.target === popup){
-            popup.classList.remove("active");
+        popupProduct.classList.remove("active");
+
+        openOrder();
+
+        if (currentProduct) {
+
+            productBox.innerHTML = ""; 
+
+            addProduct(currentProduct.name, currentProduct.price);
+
+            const lastRow = productBox.lastElementChild;
+            const qtyField = lastRow.querySelector(".order__qty");
+
+            qtyField.value = qty;
+
+            updateTotal();
         }
+    }
 
-    });
 });
 
-const closeDetail = document.querySelectorAll(".product_buyBtn--detail");
-
-closeDetail.forEach(close =>{
-  close.addEventListener("click", () => {
-      close.closest(".product_popup").classList.remove("active")
-    })
-
-})
 
 // ************ SLIDER *************
 const track = document.querySelector(".product_track");
@@ -596,8 +568,9 @@ const prevBtn_product = document.querySelector(".product_button--prev");
 let index_product = 0;
 let maxIndex = 0;
 
-const visibleItems = 3;
+let visibleItems = 3; 
 
+// LẤY DANH SÁCH ITEM
 function getProductItems() {
     return Array.from(document.querySelectorAll(".product_listItem"));
 }
@@ -606,40 +579,121 @@ function getVisibleProductItems() {
     return getProductItems().filter((item) => item.style.display !== "none");
 }
 
+
+// TÍNH WIDTH
 function getItemWidth() {
     const firstVisibleItem = getVisibleProductItems()[0] || getProductItems()[0];
 
-    if (!firstVisibleItem) {
-        return 0;
-    }
+    if (!firstVisibleItem) return 0;
 
-    return firstVisibleItem.offsetWidth + 32;
+    const style = window.getComputedStyle(track);
+    const gap = parseInt(style.columnGap || style.gap || 0);
+
+    return firstVisibleItem.offsetWidth + gap;
 }
 
-// update button trạng thái
+// UPDATE BUTTON
 function updateButtons() {
+    if (!prevBtn_product || !nextBtn_product) return;
+
     prevBtn_product.classList.toggle("disabled", index_product === 0);
     nextBtn_product.classList.toggle("disabled", index_product >= maxIndex);
 }
 
-// next
-nextBtn_product.addEventListener("click", () => {
-    if (index_product < maxIndex) {
+
+// MOVE SLIDER
+function moveSlider() {
+    track.style.transform = `translateX(-${index_product * getItemWidth()}px)`;
+}
+
+
+// REFRESH (QUAN TRỌNG NHẤT)
+window.refreshProductSlider = function () {
+    const items = getVisibleProductItems();
+
+    if (!items.length) {
+        maxIndex = 0;
+        index_product = 0;
+        moveSlider();
+        updateButtons();
+        return;
+    }
+
+    const totalItems = items.length;
+
+    maxIndex = Math.max(0, totalItems - visibleItems);
+
+    // reset lại vị trí khi reload data / filter
+    index_product = 0;
+    moveSlider();
+
+    updateButtons();
+};
+
+// EVENT BUTTON
+if (nextBtn_product) {
+    nextBtn_product.addEventListener("click", () => {
+        if (index_product < maxIndex) {
+            index_product++;
+            moveSlider();
+            updateButtons();
+        }
+    });
+}
+
+if (prevBtn_product) {
+    prevBtn_product.addEventListener("click", () => {
+        if (index_product > 0) {
+            index_product--;
+            moveSlider();
+            updateButtons();
+        }
+    });
+}
+
+window.addEventListener("load", () => {
+    window.refreshProductSlider();
+});
+
+let startX = 0;
+let currentX = 0;
+let isDragging = false;
+
+track.addEventListener("touchstart", (e) => {
+    startX = e.touches[0].clientX;
+    isDragging = true;
+});
+
+track.addEventListener("touchmove", (e) => {
+    if (!isDragging) return;
+
+    currentX = e.touches[0].clientX;
+    const diff = currentX - startX;
+
+    // kéo theo tay (preview nhẹ)
+    track.style.transform = `translateX(${-index_product * getItemWidth() + diff}px)`;
+});
+
+track.addEventListener("touchend", () => {
+    if (!isDragging) return;
+
+    const diff = currentX - startX;
+
+    const threshold = 50; // độ nhạy vuốt
+
+    if (diff < -threshold && index_product < maxIndex) {
+        // vuốt trái → next
         index_product++;
-        track.style.transform = `translateX(-${index_product * getItemWidth()}px)`;
-        updateButtons();
-    }
-});
-
-// prev
-prevBtn_product.addEventListener("click", () => {
-    if (index_product > 0) {
+    } else if (diff > threshold && index_product > 0) {
+        // vuốt phải → prev
         index_product--;
-        track.style.transform = `translateX(-${index_product * getItemWidth()}px)`;
-        updateButtons();
     }
-});
 
+    moveSlider();
+    updateButtons();
+
+    isDragging = false;
+});
 
 // ************* FILTER FUNCTION (CHUNG) *************
 function filterProducts(filter) {
@@ -746,4 +800,19 @@ orbits.forEach((item, index) => {
     item.style.setProperty('--radius', radius + 'px');
 
     item.style.animation = `spinOrbit ${duration}s linear infinite`;
+});
+
+// ***********Tăng giảm số lượng**************
+document.addEventListener("click", (e) => {
+    if (e.target.classList.contains("qty_plus")) {
+        const input = e.target.previousElementSibling;
+        input.value = Number(input.value) + 1;
+    }
+
+    if (e.target.classList.contains("qty_minus")) {
+        const input = e.target.nextElementSibling;
+        if (input.value > 1) {
+            input.value = Number(input.value) - 1;
+        }
+    }
 });
